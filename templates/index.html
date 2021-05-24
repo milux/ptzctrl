@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <title>{{title}}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,800;1,400&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='control.js') }}"></script>
+  </head>
+  <body>
+  <div id="menu-wrapper" class="row">
+    <div class="col">
+      <div>Power</div>
+      <div id="button-power-group" class="btn-group" role="group" aria-label="Power">
+        <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
+        <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
+      </div>
+    </div>
+    <div class="col">
+      <div class="col">Focus Lock</div>
+      <div id="button-focus-lock-group" class="btn-group" role="group" aria-label="Focus Lock">
+        <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
+        <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
+      </div>
+    </div>
+    <div class="col">
+      <div>On Air Change</div>
+      <div class="btn-group" role="group" aria-label="On Air Change">
+        <input type="radio" class="btn-check" name="btnonairchange" id="on-air-change-on" autocomplete="off">
+        <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-on">On</label>
+        <input type="radio" class="btn-check" name="btnonairchange" id="on-air-change-off" autocomplete="off" checked>
+        <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-off">Off</label>
+      </div>
+    </div>
+    <div class="col">
+      <div class="col">Button Control</div>
+      <div id="button-mode-group" class="btn-group" role="group" aria-label="Button Control">
+        <input type="radio" class="btn-check" name="btnmode" value="mode_recall" id="mode-recall" autocomplete="off" checked>
+        <label class="btn btn-secondary btn-lg shadow-none" for="mode-recall">Recall</label>
+        <input type="radio" class="btn-check" name="btnmode" value="mode_set" id="mode-set" autocomplete="off">
+        <label class="btn btn-secondary btn-lg shadow-none" for="mode-set">Set</label>
+        <input type="radio" class="btn-check" name="btnmode" value="mode_label" id="mode-label" autocomplete="off">
+        <label class="btn btn-secondary btn-lg shadow-none" for="mode-label">Label</label>
+      </div>
+    </div>
+  </div>
+
+  <div id="ptz-wrapper" class="row">
+    <h1 class="col">Warte auf Daten...</h1>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="label-modal" tabindex="-1" aria-labelledby="label-modal-label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="label-modal-label">Choose Label &amp; Color</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group row">
+            <div class="col">
+              <input id="label-input" type="text" class="form-control form-control-lg" placeholder="Label">
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div id="btn-class-radios" class="btn-group col" role="group" aria-label="Focus Lock">
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor1" autocomplete="off" value="btn-secondary" checked>
+              <label class="btn btn-secondary" for="btncolor1">&nbsp;</label>
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor2" autocomplete="off" value="btn-primary">
+              <label class="btn btn-primary" for="btncolor2">&nbsp;</label>
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor3" autocomplete="off" value="btn-success">
+              <label class="btn btn-success" for="btncolor3">&nbsp;</label>
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor4" autocomplete="off" value="btn-danger">
+              <label class="btn btn-danger" for="btncolor4">&nbsp;</label>
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor6" autocomplete="off" value="btn-info">
+              <label class="btn btn-info" for="btncolor6">&nbsp;</label>
+              <input type="radio" class="btn-check" name="btncolor" id="btncolor8" autocomplete="off" value="btn-dark">
+              <label class="btn btn-dark" for="btncolor8">&nbsp;</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button id="label-modal-save" type="button" class="btn btn-primary">Speichern</button>
+          <button id="label-modal-save-set" type="button" class="btn btn-danger">Speichern &amp; Set</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </body>
+</html>

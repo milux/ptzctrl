@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  ptzctrl:
+    image: milux/ptzctrl:latest
+    container_name: ptzctrl
+    # You may override the CMD like this to save log output to a file
+    # command: ["sh", "-c", "python main.py 2>log/log.txt"]
+    environment:
+      - TZ=Europe/Berlin
+    ports:
+      - 5678:5678/tcp
+      - 6789:6789/tcp
+    # volumes:
+      - ./db:/app/db
+      # Uncomment this to map a log directory for your logfile, see above
+      # - ./log:/app/log
+      # Uncomment the following line to use your customized constants.py, placed beside this file
+      # - ./constants.py:/app/constants.py
+    restart: unless-stopped
