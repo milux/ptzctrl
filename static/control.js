@@ -5,6 +5,15 @@ jQuery(() => {
         $.new = (elementType) => {
             return $(document.createElement(elementType));
         };
+
+        // Event handler for persistent (client-side) On Air Change setting
+        $("#button-on-air-change-group").on("click", "input", 
+            (event) => window.localStorage.setItem("onAirChangeState", event.target.value));
+        (() => {
+            const onAirChangeState = window.localStorage.getItem("onAirChangeState") || "off";
+            $("#button-on-air-change-group input[value=" + onAirChangeState + "]").click();
+        })();
+
         // WebSocket creation, using the hostname from the GUI
         const webSocket = new WebSocket("ws://" + window.location.hostname + ":6789/");
         // Main wrapper element for all buttons
@@ -12,20 +21,28 @@ jQuery(() => {
         // Map of header elements
         const ptzHeaders = {};
         // References for Bootstrap Modal for label and color
-        const labelModal = new bootstrap.Modal(document.getElementById('label-modal'));
+        const labelModal = $("#label-modal");
+        const bsLabelModal = new bootstrap.Modal(labelModal.get(0));
         const labelModalSave = $("#label-modal-save");
         const labelModalSaveSet = $("#label-modal-save-set");
         const labelInput = $("#label-input");
         // Create the column div for one PTZ camera
         const makePtzCol = (index, ip, tallyState) => {
-            const header = $.new("h1").text("PTZ " + (index + 1))
+            const header = $
+                .new("h1")
+                .text("PTZ " + (index + 1));
             ptzHeaders[index] = header;
             updatePtzHeader(index, tallyState);
+            const col = $
+                .new("div")
+                .attr("class", "col px-4")
+                .append(header)
+                .append($.new("h2").text(ip))
+                .appendTo(ptzWrapper);
             return $
                 .new("div")
-                .attr("class", "col")
-                .append(header)
-                .append($.new("h2").text(ip));
+                .attr("class", "row")
+                .appendTo(col);
         };
         // Update PTZ header with tally state
         const updatePtzHeader = (index, state) => {
@@ -40,14 +57,17 @@ jQuery(() => {
         // Create one button from the row data
         const makePtzButton = (row) => {
             return $
-                .new("button")
-                .attr({
-                    "type": "button",
-                    "id": "button-" + row["cam"] + "-" + row["pos"],
-                    "class": "btn btn-lg ptz-button shadow-none " + row["btn_class"]
-                })
-                .text(row["name"])
-                .data(row);
+                .new("div")
+                .attr("class", "col-12 col-lg-6 col-xxl-4 p-2")
+                .append($
+                    .new("button")
+                    .attr({
+                        "type": "button",
+                        "id": "button-" + row["cam"] + "-" + row["pos"],
+                        "class": "btn btn-lg ptz-button shadow-none " + row["btn_class"]
+                    })
+                    .text(row["name"])
+                    .data(row));
         };
         // Update button, finding it in DOM if neccessary
         const updateButton = (data, button) => {
@@ -107,20 +127,16 @@ jQuery(() => {
                     const cameraIps = data["camera_ips"];
                     const posData = data["all_pos"];
                     const tallyStates = data["tally_states"];
-                    const ptzColumns = [];
                     let cam = null;
                     let col = null;
+                    ptzWrapper.empty();
                     posData.forEach((row) => {
                         if (row["cam"] !== cam) {
                             cam = row["cam"];
                             col = makePtzCol(cam, cameraIps[cam], tallyStates[cam]);
-                            ptzColumns.push(col);
                         }
                         col.append(makePtzButton(row));
                     });
-                    ptzWrapper
-                        .empty()
-                        .append(ptzColumns);
                     break;
                 case "update_button":
                     updateButton(data);
@@ -133,12 +149,18 @@ jQuery(() => {
             }
         };
 
-        // Event handler for fucus lock
-        $("#button-power-group").on("click", "button", (event) => 
-            sendOnOff(event.target.value, "power_on", "power_off"));
-        // Event handler for fucus lock
-        $("#button-focus-lock-group").on("click", "button", (event) => 
-            sendOnOff(event.target.value, "focus_lock", "focus_unlock"));
+        // Event handler for clear all
+        $("#button-clear-all").click(() => {
+            if (confirm("Are you sure you want to RESET ALL LABELS AND COLORS?")) {
+                wsSend("clear_all", null);
+            }
+        });
+        // Event handler for power
+        $("#button-power-group").on("click", "button", 
+            (event) => sendOnOff(event.target.value, "power_on", "power_off"));
+        // Event handler for focus lock
+        $("#button-focus-lock-group").on("click", "button", 
+            (event) => sendOnOff(event.target.value, "focus_lock", "focus_unlock"));
         // Button modes
         const RECALL = "mode_recall";
         const SET = "mode_set";
@@ -184,13 +206,11 @@ jQuery(() => {
                 case RECALL:
                     if (ptzHeaders[data["cam"]].hasClass("btn-danger") && !onAirChangeOnButton.is(":checked")) {
                         flashBackground("pulse-red", 300);
-                        console.log("flash-red");
                     } else {
                         wsSend("recall_pos", {
                             "cam": data["cam"],
                             "pos": data["pos"]
                         });
-                        console.log("recall");
                     }
                     break;
                 case SET:
@@ -200,13 +220,13 @@ jQuery(() => {
                     $("#btn-class-radios input")
                         .filter((_index, element) => element.value === data["btn_class"])
                         .prop("checked", true);
-                    labelModal.show();
+                    bsLabelModal.show();
                     labelInput.val(data["name"]);
                     break;
             }
         });
         // Modal event listeners
-        labelInput.keyup((event) => {
+        labelModal.keyup((event) => {
             if (event.key === "Enter") {
                 if (event.ctrlKey || event.altKey) {
                     labelModalSaveSet.click();
@@ -215,7 +235,7 @@ jQuery(() => {
                 }
             }
         });
-        $("#label-modal").on("shown.bs.modal", () => {
+        labelModal.on("shown.bs.modal", () => {
             labelInput.focus();
             labelInput.get(0).setSelectionRange(0, labelInput.val().length)
         });
@@ -226,11 +246,11 @@ jQuery(() => {
             }, clickedButton);
             wsSend("update_button", newData);
             clickedButton = null;
-            labelModal.hide();
+            bsLabelModal.hide();
         });
         labelModalSaveSet.click(() => {
             const data = clickedButton.data();
-            $("#label-modal").one("hidden.bs.modal", () => savePos(data));
+            labelModal.one("hidden.bs.modal", () => savePos(data));
             labelModalSave.click();
         });
     })(jQuery);

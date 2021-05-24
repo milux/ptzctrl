@@ -1,10 +1,11 @@
 import asyncio
-import functools
 import logging
 from enum import Enum
 from typing import Union
 
 import asyncio_dgram
+
+from constants import VISCA_MEMORY_SPEED
 
 
 class State(Enum):
@@ -15,25 +16,6 @@ class State(Enum):
 
 class AnswerException(Exception):
     pass
-
-
-def auto_recover(func):
-    """Make method, called on TcpCommandSocket, automatically recover on error"""
-
-    @functools.wraps(func)
-    def auto_recover_wrapper(self, *args, **kwargs):
-        # Try 2 times with recovery
-        for nTry in range(1, 3):
-            try:
-                return func(self, *args, **kwargs)
-            except ConnectionError as e:
-                logging.warning("ConnectionError in auto-recover-decorated method, "
-                                "will log exception, reconnect socket and retry...")
-                logging.exception(e)
-        # Try last time without recovery
-        return func(self, *args, **kwargs)
-
-    return auto_recover_wrapper
 
 
 def check_answer(expected: list, received: list):
@@ -68,8 +50,6 @@ def convert_half_bytes_int(half_bytes: list) -> int:
 
 
 class CommandSocket:
-    SPEED = 0x18
-
     def __init__(self, ip: str, tcp_port: int):
         self.ip = ip
         self.port = tcp_port
@@ -135,7 +115,7 @@ class CommandSocket:
 
         if not 0 <= pos <= 127:
             raise Exception("Invalid position {}.".format(pos))
-        await self.__exec([0x81, 0x01, 0x06, 0x01, self.SPEED, 0xFF])
+        await self.__exec([0x81, 0x01, 0x06, 0x01, VISCA_MEMORY_SPEED, 0xFF])
         await self.__exec([0x81, 0x01, 0x04, 0x3F, 0x02, pos, 0xFF])
 
     async def perform_recall(self, pos: int, focus: int):
@@ -146,7 +126,7 @@ class CommandSocket:
 
         async def recall_wrapper(pos_int, focus_int):
             # Start recall and immediately request focus adjustment concurrently and await completion
-            await asyncio.wait([self.__cam_memory_recall(pos_int), self.cam_focus_direct(focus_int)])
+            await self.__cam_memory_recall(pos_int)
             # Final focus position fixing (recall mostly causes slight shift)
             await self.cam_focus_direct(focus_int)
 

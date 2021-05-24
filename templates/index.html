@@ -11,45 +11,51 @@
     <script src="{{ url_for('static', filename='control.js') }}"></script>
   </head>
   <body>
-  <div id="menu-wrapper" class="row">
-    <div class="col">
-      <div>Power</div>
-      <div id="button-power-group" class="btn-group" role="group" aria-label="Power">
-        <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
-        <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
+  <div class="container-fluid">
+    <div id="menu-wrapper" class="row">
+      <div class="col">
+        <div>Clear All Labels &amp; Colors</div>
+        <button id="button-clear-all" class="btn btn-secondary btn-lg shadow-none">Clear All</button>
+      </div>
+      <div class="col">
+        <div>Power</div>
+        <div id="button-power-group" class="btn-group" role="group" aria-label="Power">
+          <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
+          <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
+        </div>
+      </div>
+      <div class="col">
+        <div>Focus Lock</div>
+        <div id="button-focus-lock-group" class="btn-group" role="group" aria-label="Focus Lock">
+          <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
+          <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
+        </div>
+      </div>
+      <div class="col">
+        <div>Allow Program Change</div>
+        <div id="button-on-air-change-group" class="btn-group" role="group" aria-label="On Air Change">
+          <input type="radio" class="btn-check" name="btn-on-air-change" value="on" id="on-air-change-on" autocomplete="off">
+          <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-on">On</label>
+          <input type="radio" class="btn-check" name="btn-on-air-change" value="off" id="on-air-change-off" autocomplete="off">
+          <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-off">Off</label>
+        </div>
+      </div>
+      <div class="col">
+        <div>Button Control</div>
+        <div id="button-mode-group" class="btn-group" role="group" aria-label="Button Control">
+          <input type="radio" class="btn-check" name="btnmode" value="mode_recall" id="mode-recall" autocomplete="off" checked>
+          <label class="btn btn-secondary btn-lg shadow-none" for="mode-recall">Recall</label>
+          <input type="radio" class="btn-check" name="btnmode" value="mode_set" id="mode-set" autocomplete="off">
+          <label class="btn btn-secondary btn-lg shadow-none" for="mode-set">Set</label>
+          <input type="radio" class="btn-check" name="btnmode" value="mode_label" id="mode-label" autocomplete="off">
+          <label class="btn btn-secondary btn-lg shadow-none" for="mode-label">Label</label>
+        </div>
       </div>
     </div>
-    <div class="col">
-      <div class="col">Focus Lock</div>
-      <div id="button-focus-lock-group" class="btn-group" role="group" aria-label="Focus Lock">
-        <button class="btn btn-secondary btn-lg shadow-none" value="on">On</button>
-        <button class="btn btn-secondary btn-lg shadow-none" value="off">Off</button>
-      </div>
-    </div>
-    <div class="col">
-      <div>On Air Change</div>
-      <div class="btn-group" role="group" aria-label="On Air Change">
-        <input type="radio" class="btn-check" name="btnonairchange" id="on-air-change-on" autocomplete="off">
-        <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-on">On</label>
-        <input type="radio" class="btn-check" name="btnonairchange" id="on-air-change-off" autocomplete="off" checked>
-        <label class="btn btn-secondary btn-lg shadow-none" for="on-air-change-off">Off</label>
-      </div>
-    </div>
-    <div class="col">
-      <div class="col">Button Control</div>
-      <div id="button-mode-group" class="btn-group" role="group" aria-label="Button Control">
-        <input type="radio" class="btn-check" name="btnmode" value="mode_recall" id="mode-recall" autocomplete="off" checked>
-        <label class="btn btn-secondary btn-lg shadow-none" for="mode-recall">Recall</label>
-        <input type="radio" class="btn-check" name="btnmode" value="mode_set" id="mode-set" autocomplete="off">
-        <label class="btn btn-secondary btn-lg shadow-none" for="mode-set">Set</label>
-        <input type="radio" class="btn-check" name="btnmode" value="mode_label" id="mode-label" autocomplete="off">
-        <label class="btn btn-secondary btn-lg shadow-none" for="mode-label">Label</label>
-      </div>
-    </div>
-  </div>
 
-  <div id="ptz-wrapper" class="row">
-    <h1 class="col">Warte auf Daten...</h1>
+    <div id="ptz-wrapper" class="row h-100">
+      <h1 class="col">Warte auf Daten...</h1>
+    </div>
   </div>
 
   <!-- Modal -->
@@ -84,9 +90,9 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-          <button id="label-modal-save" type="button" class="btn btn-primary">Speichern</button>
-          <button id="label-modal-save-set" type="button" class="btn btn-danger">Speichern &amp; Set</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abort</button>
+          <button id="label-modal-save" type="button" class="btn btn-primary">Save Only</button>
+          <button id="label-modal-save-set" type="button" class="btn btn-danger">Save &amp; Set</button>
         </div>
       </div>
     </div>

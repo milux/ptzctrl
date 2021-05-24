@@ -8,6 +8,7 @@ NUM_BUTTONS = 18
 # However, you MUST put the "real" PTZ cameras first!
 CAMERA_IPS = ['10.1.0.31', '10.1.0.32', '10.1.0.33', '10.1.0.34']
 VISCA_UDP_PORT = 1259
+VISCA_MEMORY_SPEED = 0x18
 # The order of these IDs must match the order of CAMERA_IPS w.r.t. your ATEM controller
 # Leave empty to disable on air change protection
 TALLY_IDS = [4, 5, 3]
@@ -19,3 +20,7 @@ FLASK_SERVER_PORT = 5678
 WEBSOCKET_SERVER_PORT = 6789
 # The place where to expect/create the SQLite database for button data
 DB_FILE = "db/db.sqlite"
+# Timeout for most camera operations
+VISCA_TIMEOUT = 5.0
+# Timeout for recall operations
+RECALL_TIMEOUT = 20.0
