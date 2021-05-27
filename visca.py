@@ -26,6 +26,8 @@ def check_answer(expected: list, received: list):
 
 
 def convert_int_to_half_bytes(integer: int) -> list:
+    """This function splits the given integer into >= 4 half-filled bytes, ranging from 0x00 to 0x0F"""
+
     result = []
     i = integer
     while i > 16:
@@ -40,6 +42,8 @@ def convert_int_to_half_bytes(integer: int) -> list:
 
 
 def convert_half_bytes_int(half_bytes: list) -> int:
+    """This function retrieves an integer from half-filled bytes, ranging from 0x00 to 0x0F"""
+
     result = 0
     for b in half_bytes:
         if b > 15:
@@ -54,6 +58,7 @@ class CommandSocket:
         self.ip = ip
         self.port = tcp_port
         self.recall_task = None
+        self.ephemeral_autofocus = False
 
     async def __exec(self, command: list, is_inq=False) -> Union[list, None]:
         sock = None
@@ -74,60 +79,90 @@ class CommandSocket:
             if sock:
                 sock.close()
 
-    async def cam_power(self, state: State):
+    async def set_power(self, state: State):
+        logging.debug("Set power state: %s" % str(state))
         await self.__exec([0x81, 0x01, 0x04, 0x00, state.value, 0xFF])
 
-    async def cam_power_inq(self) -> State:
+    async def inq_power(self) -> State:
         result = await self.__exec([0x81, 0x09, 0x04, 0x00, 0xFF], True)
         check_answer([0x90, 0x50, None, 0xFF], result)
         return State(result[2])
 
-    async def cam_iris_direct(self, iris: int):
+    async def set_iris_direct(self, iris: int):
         if not 0 <= iris <= 255:
             raise Exception("Invalid iris value %d." % iris)
         await self.__exec([0x81, 0x01, 0x04, 0x4B] + convert_int_to_half_bytes(iris) + [0xFF])
 
-    async def cam_focus_direct(self, focus: int):
+    async def focus_direct(self, focus: int):
+        logging.debug("Set focus: %d" % focus)
         if not 0 <= focus <= 1770:
             raise Exception("Invalid focus value %d." % focus)
         await self.__exec([0x81, 0x01, 0x04, 0x48] + convert_int_to_half_bytes(focus) + [0xFF])
 
-    async def cam_focus_inq(self) -> int:
+    async def inq_focus(self) -> int:
         answer = await self.__exec([0x81, 0x09, 0x04, 0x48, 0xFF], True)
         check_answer([0x90, 0x50, None, None, None, None, 0xFF], answer)
         return convert_half_bytes_int(answer[2:6])
 
-    async def cam_zoom_inq(self) -> int:
+    async def inq_focus_af_mode(self) -> State:
+        result = await self.__exec([0x81, 0x09, 0x04, 0x38, 0xFF], True)
+        check_answer([0x90, 0x50, None, 0xFF], result)
+        return State(result[2])
+
+    async def inq_zoom(self) -> int:
         answer = await self.__exec([0x81, 0x09, 0x04, 0x47, 0xFF], True)
         check_answer([0x90, 0x50, None, None, None, None, 0xFF], answer)
         return convert_half_bytes_int(answer[2:6])
 
-    async def cam_focus_lock(self, state: State):
+    async def set_focus_lock(self, state: State):
+        logging.debug("Set focus lock state: %s" % str(state))
+        # In case of a concurrent recall, clear the ephemeral AF flag, since FL overrides this semantically
+        if state == State.ON:
+            self.ephemeral_autofocus = False
+        # Execute or unlock FL
         await self.__exec([0x81, 0x0A, 0x04, 0x68, state.value, 0xFF])
+        if state == State.OFF:
+            # When focus lock was turned off, instantly request autofocus to obtain a "sane" state
+            await self.__exec([0x81, 0x01, 0x04, 0x38, State.ON.value, 0xFF])
 
-    async def cam_memory_set(self, pos: int):
+    async def memory_set(self, pos: int):
+        logging.debug("Save position %d to memory" % pos)
         if not 0 <= pos <= 127:
             raise Exception("Invalid position {}.".format(pos))
         await self.__exec([0x81, 0x01, 0x04, 0x3F, 0x01, pos, 0xFF])
 
-    async def __cam_memory_recall(self, pos: int):
+    async def __memory_recall(self, pos: int):
         """Internal function for recall execution"""
 
         if not 0 <= pos <= 127:
-            raise Exception("Invalid position {}.".format(pos))
+            raise Exception("Invalid position %d." % pos)
         await self.__exec([0x81, 0x01, 0x06, 0x01, VISCA_MEMORY_SPEED, 0xFF])
         await self.__exec([0x81, 0x01, 0x04, 0x3F, 0x02, pos, 0xFF])
 
-    async def perform_recall(self, pos: int, focus: int):
+    async def recall(self, pos: int, focus: int):
         """Perform a recall with a certain position and focus value."""
 
         if self.recall_task is not None and not self.recall_task.done():
             self.recall_task.cancel()
+            logging.debug("Ongoing recall cancelled")
 
         async def recall_wrapper(pos_int, focus_int):
+            logging.debug("Executing recall of position %d..." % pos_int)
+            # If AF has been enabled ephemerally (by cancelled recall), we can continue right away
+            if not self.ephemeral_autofocus:
+                af_mode = await self.inq_focus_af_mode()
+                if af_mode == State.OFF:
+                    logging.debug("Enabling ephemeral AF...")
+                    # Unlock focus ephemerally (activates AF) and set flag
+                    self.ephemeral_autofocus = True
+                    await self.set_focus_lock(State.OFF)
             # Recall camera position from memory
-            await self.__cam_memory_recall(pos_int)
+            await self.__memory_recall(pos_int)
+            # If AF has been enabled ephemerally before, perform FL and clear flag
+            if self.ephemeral_autofocus:
+                logging.debug("Disabling ephemeral AF...")
+                await self.set_focus_lock(State.ON)
             # Apply saved focus for position
-            await self.cam_focus_direct(focus_int)
+            await self.focus_direct(focus_int)
 
         self.recall_task = asyncio.create_task(recall_wrapper(pos, focus))

@@ -25,20 +25,20 @@ async def update_button(message: str, data: dict, sender: WebSocketServerProtoco
     DB.set_button(**data)
     if len(USERS) > 1:  # asyncio.wait doesn't accept an empty list
         logging.debug("Updating users...")
-        await asyncio.wait([user.send(message) for user in USERS if user != sender])
+        await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS if user != sender])
 
 
 async def save_pos(data: dict):
     camera = CAMERAS[data["cam"]]
-    focus = await camera.cam_focus_inq()
+    focus = await camera.inq_focus()
     DB.set_focus(focus=focus, **data)
-    await camera.cam_memory_set(data["pos"])
+    await camera.memory_set(data["pos"])
 
 
 async def recall_pos(data: dict):
     camera = CAMERAS[data["cam"]]
     focus = DB.get_focus(**data)
-    await camera.perform_recall(data["pos"], focus)
+    await camera.recall(data["pos"], focus)
 
 
 async def init(user: WebSocketServerProtocol):
@@ -67,16 +67,20 @@ async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
             elif event == "recall_pos":
                 await asyncio.wait_for(recall_pos(data), RECALL_TIMEOUT)
             elif event == "focus_lock":
-                await asyncio.wait([camera.cam_focus_lock(State.ON) for camera in CAMERAS], timeout=VISCA_TIMEOUT)
+                await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.ON)) for camera in CAMERAS],
+                                   timeout=VISCA_TIMEOUT)
             elif event == "focus_unlock":
-                await asyncio.wait([camera.cam_focus_lock(State.OFF) for camera in CAMERAS], timeout=VISCA_TIMEOUT)
+                await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.OFF)) for camera in CAMERAS],
+                                   timeout=VISCA_TIMEOUT)
             elif event == "power_on":
-                await asyncio.wait([camera.cam_power(State.ON) for camera in CAMERAS], timeout=VISCA_TIMEOUT)
+                await asyncio.wait([asyncio.create_task(camera.set_power(State.ON)) for camera in CAMERAS],
+                                   timeout=VISCA_TIMEOUT)
             elif event == "power_off":
-                await asyncio.wait([camera.cam_power(State.OFF) for camera in CAMERAS], timeout=VISCA_TIMEOUT)
+                await asyncio.wait([asyncio.create_task(camera.set_power(State.OFF)) for camera in CAMERAS],
+                                   timeout=VISCA_TIMEOUT)
             elif event == "clear_all":
                 DB.clear_buttons()
-                await asyncio.wait([init(user) for user in USERS])
+                await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
             else:
                 logging.error("Unsupported event: %s with data %s" % (event, data))
     finally:
@@ -90,7 +94,7 @@ async def tally_notify(cam: int, state: int):
             "event": "update_tally",
             "data": TALLY_STATES
         })
-        await asyncio.wait([user.send(message) for user in USERS])
+        await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS])
 
 
 async def watch_tallies():
