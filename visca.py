@@ -125,9 +125,9 @@ class CommandSocket:
             self.recall_task.cancel()
 
         async def recall_wrapper(pos_int, focus_int):
-            # Start recall and immediately request focus adjustment concurrently and await completion
+            # Recall camera position from memory
             await self.__cam_memory_recall(pos_int)
-            # Final focus position fixing (recall mostly causes slight shift)
+            # Apply saved focus for position
             await self.cam_focus_direct(focus_int)
 
         self.recall_task = asyncio.create_task(recall_wrapper(pos, focus))

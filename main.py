@@ -16,7 +16,6 @@ from visca import CommandSocket, State
 logging.basicConfig(level=logging.DEBUG)
 
 CAMERAS = None
-TALLY_CLIENTS = None
 TALLY_STATES = [0] * len(TALLY_IDS)
 DB = Database()
 USERS = set()
@@ -95,11 +94,10 @@ async def tally_notify(cam: int, state: int):
 
 
 async def watch_tallies():
-    # Tally watcher clients
-    tally_clients = [TallyClient(index, num, tally_notify, TALLY_HOST, TALLY_PORT)
-                     for index, num in enumerate(TALLY_IDS) if num >= 0]
-    for tally_client in tally_clients:
-        asyncio.create_task(tally_client.connect())
+    # Create and schedule tally watcher clients
+    for index, num in enumerate(TALLY_IDS):
+        if num >= 0:
+            asyncio.create_task(TallyClient(index, num, tally_notify, TALLY_HOST, TALLY_PORT).connect())
 
 
 if __name__ == "__main__":
