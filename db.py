@@ -1,9 +1,11 @@
 import logging
 from contextlib import contextmanager
-from sqlite3 import connect, Cursor
 from os.path import exists
+from sqlite3 import connect, Cursor
 
 from constants import NUM_CAMERAS, NUM_BUTTONS, DB_FILE
+
+LOG = logging.getLogger("db")
 
 
 class Database:
@@ -11,7 +13,7 @@ class Database:
 
     def __init__(self):
         if not exists(DB_FILE):
-            logging.info("Initialize sqlite database...")
+            LOG.info("Initialize sqlite database...")
             with self.cursor() as cur:
                 cur.execute("CREATE TABLE positions ("
                             "cam INTEGER NOT NULL, "
@@ -23,7 +25,7 @@ class Database:
                 for cam in range(NUM_CAMERAS):
                     for pos in range(NUM_BUTTONS):
                         cur.execute("INSERT INTO positions (cam, pos) VALUES (?, ?)", (cam, pos))
-            logging.info("Initialization complete")
+            LOG.info("Initialization complete")
 
     @contextmanager
     def dict_cursor(self) -> Cursor:

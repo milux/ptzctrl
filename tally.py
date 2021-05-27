@@ -5,6 +5,7 @@ from typing import Awaitable, Callable
 
 from constants import TALLY_IDS, TALLY_HOST, TALLY_PORT
 
+LOG = logging.getLogger("tally")
 TALLY_WATCH_TASKS = []
 
 
@@ -24,7 +25,7 @@ async def connect(tally_cam: int, host: str, port: int) -> (StreamReader, Stream
 async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitable[None]], host: str, port: int):
     # Start with only 10 ms reconnect delay on first error
     reconnect_delay = 10
-    logging.info("Connecting to tally state monitoring for device %d (PTZ %d)" % (tally_cam, cam))
+    LOG.info("Connecting to tally state monitoring for device %d (PTZ %d)" % (tally_cam, cam))
     reader, writer = await connect(tally_cam, host, port)
     while True:
         state_bytes = await reader.read(1)
@@ -33,7 +34,7 @@ async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitab
             writer.close()
             # Convert reconnect delay to seconds
             delay = reconnect_delay / 1000
-            logging.error("Received no update for device %d, try reconnect after %d s..." % (tally_cam, delay))
+            LOG.error("Received no update for device %d, try reconnect after %d s..." % (tally_cam, delay))
             await asyncio.sleep(delay)
             reader, writer = await connect(tally_cam, host, port)
             state_bytes = await reader.read(1)
@@ -42,5 +43,5 @@ async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitab
         # Upon success, reset reconnect delay to initial value
         reconnect_delay = 10
         state = int.from_bytes(state_bytes, 'big')
-        logging.info("Received state %d for PTZ %d" % (state, cam))
+        LOG.info("Received state %d for PTZ %d" % (state, cam))
         await callback(cam, state)

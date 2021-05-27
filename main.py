@@ -15,9 +15,10 @@ from visca import CommandSocket, State
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d %(message)s"
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s"
 )
 
+LOG = logging.getLogger("main")
 CAMERAS = None
 TALLY_STATES = [0] * len(TALLY_IDS)
 DB = Database()
@@ -27,7 +28,7 @@ USERS = set()
 async def update_button(message: str, data: dict, sender: WebSocketServerProtocol):
     DB.set_button(**data)
     if len(USERS) > 1:  # asyncio.wait doesn't accept an empty list
-        logging.debug("Updating users...")
+        LOG.debug("Updating users...")
         await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS if user != sender])
 
 
@@ -85,7 +86,7 @@ async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
                 DB.clear_buttons()
                 await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
             else:
-                logging.error("Unsupported event: %s with data %s" % (event, data))
+                LOG.error("Unsupported event: %s with data %s" % (event, data))
     finally:
         USERS.remove(websocket)
 
