@@ -7,13 +7,16 @@ import websockets
 from flask import Flask, render_template
 from websockets import WebSocketServerProtocol
 
-from constants import TALLY_IDS, CAMERA_IPS, TALLY_HOST, TALLY_PORT, VISCA_UDP_PORT, SERVER_HOST, FLASK_SERVER_PORT, \
+from constants import TALLY_IDS, CAMERA_IPS, VISCA_UDP_PORT, SERVER_HOST, FLASK_SERVER_PORT, \
     WEBSOCKET_SERVER_PORT, WEB_TITLE, VISCA_TIMEOUT, RECALL_TIMEOUT
 from db import Database
-from tally import TallyClient
+from tally import watch_tallies
 from visca import CommandSocket, State
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(name)s %(filename)s:%(lineno)d %(message)s"
+)
 
 CAMERAS = None
 TALLY_STATES = [0] * len(TALLY_IDS)
@@ -97,13 +100,6 @@ async def tally_notify(cam: int, state: int):
         await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS])
 
 
-async def watch_tallies():
-    # Create and schedule tally watcher clients
-    for index, num in enumerate(TALLY_IDS):
-        if num >= 0:
-            asyncio.create_task(TallyClient(index, num, tally_notify, TALLY_HOST, TALLY_PORT).connect())
-
-
 if __name__ == "__main__":
     # Create flask web server for resource serving
     app = Flask(__name__)
@@ -125,7 +121,7 @@ if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(start_server)
 
     # Start tally state watcher clients
-    asyncio.get_event_loop().run_until_complete(watch_tallies())
+    asyncio.get_event_loop().run_until_complete(watch_tallies(tally_notify))
 
     # Wait on event loop
     asyncio.get_event_loop().run_forever()
