@@ -22,4 +22,4 @@ the following (`pip`) dependencies must be installed **in addition to Python 3.8
 ### Setup
 
 The default settings of this tool match specifically our setup.
-Please adapt `constants.py`, using sane values that fit your setup.
+Please adapt `constants.py`, using same values that fit your setup.
