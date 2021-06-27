@@ -15,9 +15,10 @@ jQuery(() => {
         })();
 
         // WebSocket creation, using the hostname from the GUI
-        const webSocket = new WebSocket("ws://" + window.location.hostname + ":6789/");
+        let webSocket = null;
         // Main wrapper element for all buttons
         const ptzWrapper = $("#ptz-wrapper");
+        const waitText = $("#wait-text");
         // Map of header elements
         const ptzHeaders = {};
         // References for Bootstrap Modal for label and color
@@ -117,7 +118,7 @@ jQuery(() => {
         };
 
         // WebSocket message handling
-        webSocket.onmessage = (message) => {
+        const wsMessageHandler = (message) => {
             const messageData = JSON.parse(message.data);
             const event = messageData.event;
             const data = messageData.data;
@@ -129,7 +130,9 @@ jQuery(() => {
                     const tallyStates = data["tally_states"];
                     let cam = null;
                     let col = null;
-                    ptzWrapper.empty();
+                    waitText.hide();
+                    // Remove all columns before repaint
+                    waitText.nextAll().remove();
                     posData.forEach((row) => {
                         if (row["cam"] !== cam) {
                             cam = row["cam"];
@@ -148,6 +151,23 @@ jQuery(() => {
                     console.log("Unknown event: " + event, data);
             }
         };
+        let wsTimeout = null;
+        const connectWebSocket = () => {
+            wsTimeout = null;
+            webSocket = new WebSocket("ws://" + window.location.hostname + ":6789/");
+            webSocket.onmessage = wsMessageHandler;
+            const handleReconnect = (message, timeout) => {
+                if (wsTimeout === null) {
+                    waitText.show();
+                    waitText.nextAll().remove();
+                    console.log(message);
+                    wsTimeout = setTimeout(connectWebSocket, timeout);
+                }
+            };
+            webSocket.onclose = () => handleReconnect("Server connection closed, try reconnect...", 0);
+            webSocket.onerror = () => handleReconnect("WebSocket error, try reconnect after 1 second delay...", 1000);
+        };
+        connectWebSocket();
 
         // Event handler for clear all
         $("#button-clear-all").click(() => {
@@ -156,14 +176,18 @@ jQuery(() => {
             }
         });
         // Event handler for power
-        $("#button-power-group").on("click", "button", 
-            (event) => sendOnOff(event.target.value, "power_on", "power_off"));
+        $("#button-power-group").on("click", "button", (event) => {
+            if (event.target.value !== "off" || confirm("Are you sure you want to TURN OFF ALL PTZ CAMERAS?")) {
+                sendOnOff(event.target.value, "power_on", "power_off")
+            } else {
+                event.preventDefault();
+            }
+        });
         // Event handler for focus lock
         $("#button-focus-lock-group").on("click", "button", 
             (event) => sendOnOff(event.target.value, "focus_lock", "focus_unlock"));
         // Button modes
         const RECALL = "mode_recall";
-        const SET = "mode_set";
         const LABEL = "mode_label";
         // Current mode of buttons
         let buttonMode = RECALL;
@@ -183,9 +207,6 @@ jQuery(() => {
                     case "r": case "R": case "ArrowLeft":
                         $("#mode-recall").click();
                         break;
-                    case "s": case "S": case "ArrowDown":
-                        $("#mode-set").click();
-                        break;
                     case "l": case "L": case "ArrowRight":
                         $("#mode-label").click();
                         break;
@@ -197,34 +218,62 @@ jQuery(() => {
         // On Air Change on button
         const onAirChangeOnButton = $("#on-air-change-on");
         // Last button clicked
-        let clickedButton = null;
-        // Button click listener
-        ptzWrapper.on("click", ".ptz-button", (event) => {
-            clickedButton = $(event.target);
-            const data = clickedButton.data();
-            switch (buttonMode) {
-                case RECALL:
-                    if (ptzHeaders[data["cam"]].hasClass("btn-danger") && !onAirChangeOnButton.is(":checked")) {
-                        flashBackground("pulse-red", 300);
-                    } else {
-                        wsSend("recall_pos", {
-                            "cam": data["cam"],
-                            "pos": data["pos"]
-                        });
-                    }
-                    break;
-                case SET:
-                    savePos(data);
-                    break;
-                case LABEL:
-                    $("#btn-class-radios input")
-                        .filter((_index, element) => element.value === data["btn_class"])
-                        .prop("checked", true);
-                    bsLabelModal.show();
-                    labelInput.val(data["name"]);
-                    break;
+        let downButton = null;
+        let downTimeout = null;
+        // Button listeners, using pointer events
+        ptzWrapper.on("pointerdown", ".ptz-button", (event) => {
+            // Prevent button state change on click/touch
+            event.preventDefault();
+            // Filter for left click or direct touch/pen contact, see
+            // https://www.w3.org/TR/pointerevents3/#the-button-property
+            if (event.button !== undefined && event.button !== 0) {
+                return;
+            }
+            downButton = $(event.target);
+            downTimeout = setTimeout(() => {
+                savePos(downButton.data());
+                downTimeout = null;
+            }, 1000);
+        });
+        ptzWrapper.on("pointerleave", ".ptz-button", () => {
+            if (downTimeout !== null) {
+                console.log("Pointer left button, abort action.");
+                clearTimeout(downTimeout);
+                downTimeout = null;
             }
         });
+        ptzWrapper.on("pointerup", ".ptz-button", (event) => {
+            if (downTimeout !== null) {
+                clearTimeout(downTimeout);
+                downTimeout = null;
+                if (downButton.get(0) !== event.target) {
+                    console.log("Changed button before pointerup event, ignoring.");
+                    return;
+                }
+                const data = downButton.data();
+                switch (buttonMode) {
+                    case RECALL:
+                        if (ptzHeaders[data["cam"]].hasClass("btn-danger") && !onAirChangeOnButton.is(":checked")) {
+                            flashBackground("pulse-red", 300);
+                        } else {
+                            wsSend("recall_pos", {
+                                "cam": data["cam"],
+                                "pos": data["pos"]
+                            });
+                        }
+                        break;
+                    case LABEL:
+                        $("#btn-class-radios input")
+                            .filter((_index, element) => element.value === data["btn_class"])
+                            .prop("checked", true);
+                        bsLabelModal.show();
+                        labelInput.val(data["name"]);
+                        break;
+                }
+            }
+        });
+        // Filter contextmenu event
+        $(document).on("contextmenu", ".ptz-button", (event) => event.preventDefault());
         // Modal event listeners
         labelModal.keyup((event) => {
             if (event.key === "Enter") {
@@ -243,13 +292,13 @@ jQuery(() => {
             const newData = updateButton({
                 "name": labelInput.val(),
                 "btn_class": $("#btn-class-radios input:checked").val()
-            }, clickedButton);
+            }, downButton);
             wsSend("update_button", newData);
-            clickedButton = null;
+            downButton = null;
             bsLabelModal.hide();
         });
         labelModalSaveSet.click(() => {
-            const data = clickedButton.data();
+            const data = downButton.data();
             labelModal.one("hidden.bs.modal", () => savePos(data));
             labelModalSave.click();
         });

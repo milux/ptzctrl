@@ -2,6 +2,7 @@
 <html lang="de">
   <head>
     <title>{{title}}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Barlow&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,800;1,400&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
@@ -45,8 +46,6 @@
         <div id="button-mode-group" class="btn-group" role="group" aria-label="Button Control">
           <input type="radio" class="btn-check" name="btnmode" value="mode_recall" id="mode-recall" autocomplete="off" checked>
           <label class="btn btn-secondary btn-lg shadow-none" for="mode-recall">Recall</label>
-          <input type="radio" class="btn-check" name="btnmode" value="mode_set" id="mode-set" autocomplete="off">
-          <label class="btn btn-secondary btn-lg shadow-none" for="mode-set">Set</label>
           <input type="radio" class="btn-check" name="btnmode" value="mode_label" id="mode-label" autocomplete="off">
           <label class="btn btn-secondary btn-lg shadow-none" for="mode-label">Label</label>
         </div>
@@ -54,7 +53,7 @@
     </div>
 
     <div id="ptz-wrapper" class="row h-100">
-      <h1 class="col">Warte auf Daten...</h1>
+      <h1 id="wait-text" class="col">Waiting for WebSocket...</h1>
     </div>
   </div>
 
@@ -90,9 +89,21 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abort</button>
-          <button id="label-modal-save" type="button" class="btn btn-primary">Save Only</button>
-          <button id="label-modal-save-set" type="button" class="btn btn-danger">Save &amp; Set</button>
+          <div class="row">
+            <div class="col"></div>
+            <div class="col-auto">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abort</button>
+              <small class="clear">&nbsp;</small>
+            </div>
+            <div class="col-auto">
+              <button id="label-modal-save" type="button" class="btn btn-primary">Label</button>
+              <small class="clear">[Return]</small>
+            </div>
+            <div class="col-auto">
+              <button id="label-modal-save-set" type="button" class="btn btn-danger">Label &amp; Set</button>
+              <small class="clear">[Ctrl] + [Return]</small>
+            </div>
+          </div>
         </div>
       </div>
     </div>

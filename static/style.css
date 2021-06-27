@@ -37,6 +37,9 @@ h2 {
 #menu-wrapper .btn-lg {
   min-width: 5em;
 }
+#menu-wrapper > .col {
+  padding-bottom: 0.2em;
+}
 
 #ptz-wrapper {
   padding: 1em 0.3em 0.3em 0.3em;
@@ -51,8 +54,14 @@ h2 {
   overflow: hidden;
 }
 
-.col {
-  padding-bottom: 0.2em;
+.modal-footer .col-auto {
+  padding: 0 0.25rem;
+}
+.modal-footer .col-auto:last-child {
+  padding: 0 0 0 0.25rem;
+}
+.modal-footer small {
+  display: block;
 }
 
 @keyframes pulse-green {
@@ -60,7 +69,7 @@ h2 {
     background-color: transparent;
   }
   50% {
-    background-color: #74b0ae;
+    background-color: #5cb85c;
   }
   100% {
     background-color: transparent;
