@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import threading
+from asyncio.exceptions import TimeoutError
 
 import websockets
 from flask import Flask, render_template
@@ -64,29 +65,32 @@ async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
             message_data = json.loads(message)
             event = message_data["event"]
             data = message_data["data"]
-            if event == "update_button":
-                await asyncio.wait_for(update_button(message, data, websocket), VISCA_TIMEOUT)
-            elif event == "save_pos":
-                await asyncio.wait_for(save_pos(data), VISCA_TIMEOUT)
-            elif event == "recall_pos":
-                await asyncio.wait_for(recall_pos(data), RECALL_TIMEOUT)
-            elif event == "focus_lock":
-                await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.ON)) for camera in CAMERAS],
-                                   timeout=VISCA_TIMEOUT)
-            elif event == "focus_unlock":
-                await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.OFF)) for camera in CAMERAS],
-                                   timeout=VISCA_TIMEOUT)
-            elif event == "power_on":
-                await asyncio.wait([asyncio.create_task(camera.set_power(State.ON)) for camera in CAMERAS],
-                                   timeout=VISCA_TIMEOUT)
-            elif event == "power_off":
-                await asyncio.wait([asyncio.create_task(camera.set_power(State.OFF)) for camera in CAMERAS],
-                                   timeout=VISCA_TIMEOUT)
-            elif event == "clear_all":
-                DB.clear_buttons()
-                await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
-            else:
-                LOG.error("Unsupported event: %s with data %s" % (event, data))
+            try:
+                if event == "update_button":
+                    await asyncio.wait_for(update_button(message, data, websocket), VISCA_TIMEOUT)
+                elif event == "save_pos":
+                    await asyncio.wait_for(save_pos(data), VISCA_TIMEOUT)
+                elif event == "recall_pos":
+                    await asyncio.wait_for(recall_pos(data), RECALL_TIMEOUT)
+                elif event == "focus_lock":
+                    await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.ON)) for camera in CAMERAS],
+                                       timeout=VISCA_TIMEOUT)
+                elif event == "focus_unlock":
+                    await asyncio.wait([asyncio.create_task(camera.set_focus_lock(State.OFF)) for camera in CAMERAS],
+                                       timeout=VISCA_TIMEOUT)
+                elif event == "power_on":
+                    await asyncio.wait([asyncio.create_task(camera.set_power(State.ON)) for camera in CAMERAS],
+                                       timeout=VISCA_TIMEOUT)
+                elif event == "power_off":
+                    await asyncio.wait([asyncio.create_task(camera.set_power(State.OFF)) for camera in CAMERAS],
+                                       timeout=VISCA_TIMEOUT)
+                elif event == "clear_all":
+                    DB.clear_buttons()
+                    await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
+                else:
+                    LOG.error("Unsupported event: %s with data %s" % (event, data))
+            except TimeoutError as e:
+                LOG.warning("Timeout error during visca operation", exc_info=e)
     finally:
         USERS.remove(websocket)
 
