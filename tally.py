@@ -27,6 +27,7 @@ async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitab
     reconnect_delay = 0.5
     LOG.info("Connecting to tally state monitoring for device %d (PTZ %d)" % (tally_cam, cam))
     writer = None
+    last_state = 0
     while True:
         try:
             if reconnect_delay > 0.5:
@@ -38,8 +39,12 @@ async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitab
                 # Upon success, reset reconnect delay to initial value
                 reconnect_delay = 0.5
                 state = int.from_bytes(state_bytes, 'big')
-                LOG.info("Received state %d for PTZ %d" % (state, cam))
-                await callback(cam, state)
+                if state != last_state:
+                    LOG.info("Switched tally state %d => %d for PTZ %d" % (last_state, state, cam))
+                    last_state = state
+                    await callback(cam, state)
+                else:
+                    LOG.debug("Received unchanged tally state %d for PTZ %d" % (state, cam))
         except Exception as e:
             logging.exception(e)
             if writer is not None:
