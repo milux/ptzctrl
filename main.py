@@ -11,7 +11,7 @@ from websockets import WebSocketServerProtocol
 from constants import TALLY_IDS, CAMERA_IPS, VISCA_UDP_PORT, SERVER_HOST, FLASK_SERVER_PORT, \
     WEBSOCKET_SERVER_PORT, WEB_TITLE, VISCA_TIMEOUT, RECALL_TIMEOUT
 from db import Database
-from tally import watch_tallies
+from tally import watch_tallies, stop_watchers
 from visca import CommandSocket, State
 
 logging.basicConfig(
@@ -87,6 +87,9 @@ async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
                 elif event == "clear_all":
                     DB.clear_buttons()
                     await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
+                elif event == "reconnect":
+                    await stop_watchers()
+                    await watch_tallies(tally_notify)
                 else:
                     LOG.error("Unsupported event: %s with data %s" % (event, data))
             except TimeoutError as e:

@@ -1,12 +1,17 @@
 import asyncio
 import logging
-from asyncio import StreamReader, StreamWriter
+from asyncio import StreamReader, StreamWriter, CancelledError
 from typing import Awaitable, Callable
 
 from constants import TALLY_IDS, TALLY_HOST, TALLY_PORT
 
 LOG = logging.getLogger("tally")
 TALLY_WATCH_TASKS = []
+
+
+async def stop_watchers():
+    for task in TALLY_WATCH_TASKS:
+        task.cancel()
 
 
 async def watch_tallies(tally_notify: Callable[[int, int], Awaitable[None]]):
@@ -45,6 +50,12 @@ async def watch(cam: int, tally_cam: int, callback: Callable[[int, int], Awaitab
                     await callback(cam, state)
                 else:
                     LOG.debug("Received unchanged tally state %d for PTZ %d" % (state, cam))
+        except CancelledError:
+            if writer is not None:
+                # Close connection without awaiting result
+                writer.close()
+            logging.debug("Tally watcher for PTZ %d cancelled" % cam)
+            return
         except Exception as e:
             logging.exception(e)
             if writer is not None:

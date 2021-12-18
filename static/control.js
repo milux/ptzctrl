@@ -175,6 +175,10 @@ jQuery(() => {
                 wsSend("clear_all", null);
             }
         });
+        // Event handler for restart
+        $("#button-reconnect").click(() => {
+            wsSend("reconnect", null);
+        });
         // Event handler for power
         $("#button-power-group").on("click", "button", (event) => {
             if (event.target.value !== "off" || confirm("Are you sure you want to TURN OFF ALL PTZ CAMERAS?")) {
