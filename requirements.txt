@@ -1,0 +1,3 @@
+asyncio_dgram~=2.1.2
+Flask~=2.2.2
+websockets~=10.3

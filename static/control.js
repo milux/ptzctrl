@@ -48,9 +48,10 @@ jQuery(() => {
         // Update PTZ header with tally state
         const updatePtzHeader = (index, state) => {
             const TALLY_CLASSES = {
-                0: "",
+                0: "",  // Inactive
                 1: "btn-success",  // Preview
-                2: "btn-danger"  // Program
+                2: "btn-danger",  // Program
+                3: "btn-danger"  // Preview & Program
             };
             const header = ptzHeaders[index];
             header.attr("class", TALLY_CLASSES[state]);
@@ -91,11 +92,11 @@ jQuery(() => {
                 "data": data
             }));
         };
-        const sendOnOff = (value, onEvent, offEvent) => {
+        const sendOnOff = (value, event) => {
             if (value == "on") {
-                wsSend(onEvent, null);
+                wsSend(event, true);
             } else if (value == "off") {
-                wsSend(offEvent, null);
+                wsSend(event, false);
             } else {
                 console.error("WTF is this?");
             }
@@ -115,6 +116,13 @@ jQuery(() => {
                 "pos": data["pos"]
             });
             flashBackground("pulse-green");
+        };
+        const updateOnAirChangeButtons = (allowOnAirChange) => {
+            if (allowOnAirChange) {
+                $("#on-air-change-on").prop("checked", true);
+            } else {
+                $("#on-air-change-off").prop("checked", true);
+            }
         };
 
         // WebSocket message handling
@@ -140,12 +148,16 @@ jQuery(() => {
                         }
                         col.append(makePtzButton(row));
                     });
+                    updateOnAirChangeButtons(data["on_air_change_allowed"]);
                     break;
                 case "update_button":
                     updateButton(data);
                     break;
                 case "update_tally":
                     data.forEach((state, index) => updatePtzHeader(index, state));
+                    break;
+                case "update_on_air_change":
+                    updateOnAirChangeButtons(data);
                     break;
                 default:
                     console.log("Unknown event: " + event, data);
@@ -182,14 +194,17 @@ jQuery(() => {
         // Event handler for power
         $("#button-power-group").on("click", "button", (event) => {
             if (event.target.value !== "off" || confirm("Are you sure you want to TURN OFF ALL PTZ CAMERAS?")) {
-                sendOnOff(event.target.value, "power_on", "power_off")
+                sendOnOff(event.target.value, "power")
             } else {
                 event.preventDefault();
             }
         });
+        // Event handler for on air change lock
+        $("#button-on-air-change-group").on("click", "input",
+            (event) => sendOnOff(event.target.value, "allow_on_air_change"));
         // Event handler for focus lock
         $("#button-focus-lock-group").on("click", "button", 
-            (event) => sendOnOff(event.target.value, "focus_lock", "focus_unlock"));
+            (event) => sendOnOff(event.target.value, "focus_lock"));
         // Button modes
         const RECALL = "mode_recall";
         const LABEL = "mode_label";
@@ -257,7 +272,10 @@ jQuery(() => {
                 const data = downButton.data();
                 switch (buttonMode) {
                     case RECALL:
-                        if (ptzHeaders[data["cam"]].hasClass("btn-danger") && !onAirChangeOnButton.is(":checked")) {
+                        const ptzHeader = ptzHeaders[data["cam"]];
+                        if ((ptzHeader.hasClass("btn-danger") || ptzHeader.hasClass("btn-warning"))
+                            && !onAirChangeOnButton.is(":checked")
+                        ) {
                             flashBackground("pulse-red", 300);
                         } else {
                             wsSend("recall_pos", {

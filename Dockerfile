@@ -1,10 +1,10 @@
-FROM python:3.9-alpine
+FROM python:3-alpine
 
-RUN pip install websockets flask asyncio-dgram
-
-RUN mkdir /app
 WORKDIR /app
 
-COPY . /app/
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
 
 CMD ["python", "main.py"]
