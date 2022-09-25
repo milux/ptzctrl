@@ -153,14 +153,20 @@ if __name__ == "__main__":
 
     # Init camera controls
     CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
+
+    # Create event loop
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+
     # Start WebSocket server
-    start_server = websockets.serve(dispatcher, SERVER_HOST, WEBSOCKET_SERVER_PORT)
-    asyncio.get_event_loop().run_until_complete(start_server)
+    ws_server = websockets.serve(dispatcher, SERVER_HOST, WEBSOCKET_SERVER_PORT)
+    event_loop.run_until_complete(ws_server)
 
-    # Start tally state watcher clients
-    asyncio.get_event_loop().run_until_complete(watch_tallies(tally_notify))
+    # Start tally state watcher client
+    event_loop.run_until_complete(watch_tallies(tally_notify))
 
-    asyncio.get_event_loop().run_until_complete(run_relay(IP_HOLDER))
+    # Start VISCA relay
+    event_loop.run_until_complete(run_relay(IP_HOLDER))
 
     # Wait on event loop
-    asyncio.get_event_loop().run_forever()
+    event_loop.run_forever()
