@@ -14,10 +14,8 @@ VISCA_MEMORY_SPEED = 0x18
 TALLY_IDS = [4, 5, 3]
 TALLY_HOST = "pi.mk"
 TALLY_PORT = 7411
-# You may configure host and port for frontend and websocket here
-SERVER_HOST = "0.0.0.0"
-FLASK_SERVER_PORT = 5678
-WEBSOCKET_SERVER_PORT = 6789
+# Frequency used for doing a ping-pong to check if tally connection is alive
+TALLY_KEEPALIVE_FREQUENCY = 10.0
 # The place where to expect/create the SQLite database for button data
 DB_FILE = "db/db.sqlite"
 # Timeout for most camera operations

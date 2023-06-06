@@ -23,8 +23,7 @@ class AnswerException(Exception):
 def check_answer(expected: list, received: list):
     for exp, comp in zip(expected, received):
         if exp is not None and exp != comp:
-            raise AnswerException("Answer has unexpected format, expected %s, received %s"
-                                  % (str(expected), str(received)))
+            raise AnswerException(f"Answer has unexpected format, expected {str(expected)}, received {str(received)}")
 
 
 def convert_int_to_half_bytes(integer: int) -> list:
@@ -39,7 +38,7 @@ def convert_int_to_half_bytes(integer: int) -> list:
     while len(result) < 4:
         result.append(0)
     result.reverse()
-    LOG.debug("Convert: %d -> %s" % (integer, str(result)))
+    LOG.debug(f"Convert: {integer} -> {result}")
     return result
 
 
@@ -49,9 +48,9 @@ def convert_half_bytes_int(half_bytes: list) -> int:
     result = 0
     for b in half_bytes:
         if b > 15:
-            raise Exception("Invalid byte value %d, only low half must be used!" % b)
+            raise Exception(f"Invalid byte value {b}, only low half must be used!")
         result = result * 16 + b
-    LOG.debug("Convert: %s -> %d" % (str(half_bytes), result))
+    LOG.debug(f"Convert: {half_bytes} -> {result}")
     return result
 
 
@@ -68,21 +67,21 @@ class CommandSocket:
             sock = await asyncio_dgram.connect((self.ip, self.port))
             command_bytes = bytes(command)
             await sock.send(command_bytes)
-            LOG.debug("Command sent: %s" % command_bytes.hex(" "))
+            LOG.debug(f"Command sent: {command_bytes.hex(' ')}")
             if is_inq:
                 result, _remote_address = await sock.recv()
-                LOG.debug("Answer received: %s" % result.hex(" "))
+                LOG.debug(f"Answer received: {result.hex(' ')}")
                 return list(result)
             else:
                 for _ in range(2):
                     result, _remote_address = await sock.recv()
-                    LOG.debug("Answer received: %s" % result.hex(" "))
+                    LOG.debug(f"Answer received: {result.hex(' ')}")
         finally:
             if sock:
                 sock.close()
 
     async def set_power(self, state: State):
-        LOG.debug("Set power state: %s" % str(state))
+        LOG.debug(f"Set power state: {state}")
         await self.__exec([0x81, 0x01, 0x04, 0x00, state.value, 0xFF])
 
     async def inq_power(self) -> State:
@@ -92,13 +91,13 @@ class CommandSocket:
 
     async def set_iris_direct(self, iris: int):
         if not 0 <= iris <= 255:
-            raise Exception("Invalid iris value %d." % iris)
+            raise Exception(f"Invalid iris value {iris}.")
         await self.__exec([0x81, 0x01, 0x04, 0x4B] + convert_int_to_half_bytes(iris) + [0xFF])
 
     async def focus_direct(self, focus: int):
-        LOG.debug("Set focus: %d" % focus)
+        LOG.debug(f"Set focus: {focus}")
         if not 0 <= focus <= 1770:
-            raise Exception("Invalid focus value %d." % focus)
+            raise Exception(f"Invalid focus value {focus}.")
         await self.__exec([0x81, 0x01, 0x04, 0x48] + convert_int_to_half_bytes(focus) + [0xFF])
 
     async def inq_focus(self) -> int:
@@ -117,7 +116,7 @@ class CommandSocket:
         return convert_half_bytes_int(answer[2:6])
 
     async def set_focus_lock(self, state: State):
-        LOG.debug("Set focus lock state: %s" % str(state))
+        LOG.debug(f"Set focus lock state: {state}")
         # In case of a concurrent recall, clear the ephemeral AF flag, since FL overrides this semantically
         if state == State.ON:
             self.ephemeral_autofocus = False
@@ -128,16 +127,16 @@ class CommandSocket:
             await self.__exec([0x81, 0x01, 0x04, 0x38, State.ON.value, 0xFF])
 
     async def memory_set(self, pos: int):
-        LOG.debug("Save position %d to memory" % pos)
+        LOG.debug(f"Save position {pos} to memory")
         if not 0 <= pos <= 127:
-            raise Exception("Invalid position {}.".format(pos))
+            raise Exception(f"Invalid position {pos}.")
         await self.__exec([0x81, 0x01, 0x04, 0x3F, 0x01, pos, 0xFF])
 
     async def __memory_recall(self, pos: int):
         """Internal function for recall execution"""
 
         if not 0 <= pos <= 127:
-            raise Exception("Invalid position %d." % pos)
+            raise Exception(f"Invalid position {pos}.")
         await self.__exec([0x81, 0x01, 0x06, 0x01, VISCA_MEMORY_SPEED, 0xFF])
         await self.__exec([0x81, 0x01, 0x04, 0x3F, 0x02, pos, 0xFF])
 
@@ -149,7 +148,7 @@ class CommandSocket:
             LOG.debug("Ongoing recall cancelled")
 
         async def recall_wrapper(pos_int, focus_int):
-            LOG.debug("Executing recall of position %d..." % pos_int)
+            LOG.debug(f"Executing recall of position {pos_int}...")
             # If AF has been enabled ephemerally (by cancelled recall), we can continue right away
             if not self.ephemeral_autofocus:
                 af_mode = await self.inq_focus_af_mode()

@@ -16,8 +16,9 @@ If you want to start the tool manually via its entry point (`main.py`),
 the following (`pip`) dependencies must be installed **in addition to Python 3.8 or higher**:
 
 - websockets (9.x)
-- flask (2.x)
 - asyncio-dgram (2.x)
+- fastapi (0.95.x)
+- starlette (0.26.x)
 
 ### Setup
 

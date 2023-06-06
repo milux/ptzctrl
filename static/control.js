@@ -166,7 +166,7 @@ jQuery(() => {
         let wsTimeout = null;
         const connectWebSocket = () => {
             wsTimeout = null;
-            webSocket = new WebSocket("ws://" + window.location.hostname + ":6789/");
+            webSocket = new WebSocket("ws://" + window.location.hostname + "/ws");
             webSocket.onmessage = wsMessageHandler;
             const handleReconnect = (message, timeout) => {
                 if (wsTimeout === null) {

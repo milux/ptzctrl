@@ -25,4 +25,4 @@ async def run_relay(ip_holder: List[Optional[str]]):
                 client_addr = addr
                 await sock.send(data, known_server)
         except Exception as e:
-            print("Error in relay: %s" % e)
+            print(f"Error in relay: {e}")

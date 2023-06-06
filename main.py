@@ -1,16 +1,18 @@
 import asyncio
-import json
 import logging
-import threading
 from asyncio.exceptions import TimeoutError
-from typing import Optional, List
+from contextlib import asynccontextmanager
+from typing import Optional, List, Any, Set
 
-import websockets
-from flask import Flask, render_template
+from fastapi import FastAPI
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from websockets import WebSocketServerProtocol
 
-from constants import TALLY_IDS, CAMERA_IPS, VISCA_UDP_PORT, SERVER_HOST, FLASK_SERVER_PORT, \
-    WEBSOCKET_SERVER_PORT, WEB_TITLE, VISCA_TIMEOUT, RECALL_TIMEOUT
+from constants import TALLY_IDS, CAMERA_IPS, VISCA_UDP_PORT, WEB_TITLE, VISCA_TIMEOUT, RECALL_TIMEOUT
 from db import Database
 from relay import run_relay
 from tally import watch_tallies, stop_watcher
@@ -22,19 +24,19 @@ logging.basicConfig(
 )
 
 LOG = logging.getLogger("main")
-CAMERAS = None
+CAMERAS: List[CommandSocket]
 TALLY_STATES = [0] * len(TALLY_IDS)
 IP_HOLDER: List[Optional[str]] = [None]
-DB = Database()
-USERS = set()
+DB: Database
+USERS: Set[WebSocket] = set()
 on_air_change_allowed = False
 
 
-async def update_button(message: str, data: dict, sender: WebSocketServerProtocol):
+async def update_button(message: Any, data: dict, sender: WebSocketServerProtocol):
     DB.set_button(**data)
     if len(USERS) > 1:  # asyncio.wait doesn't accept an empty list
         LOG.debug("Updating users...")
-        await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS if user != sender])
+        await asyncio.wait([asyncio.create_task(user.send_json(message)) for user in USERS if user != sender])
 
 
 async def save_pos(data: dict):
@@ -51,7 +53,7 @@ async def recall_pos(data: dict):
 
 
 async def init(user: WebSocketServerProtocol):
-    await user.send(json.dumps({
+    await user.send_json({
         "event": "init",
         "data": {
             "camera_ips": CAMERA_IPS,
@@ -59,7 +61,7 @@ async def init(user: WebSocketServerProtocol):
             "tally_states": TALLY_STATES,
             "on_air_change_allowed": on_air_change_allowed
         }
-    }))
+    })
 
 
 async def update_on_air_change(allow: bool, sender: WebSocketServerProtocol):
@@ -70,22 +72,72 @@ async def update_on_air_change(allow: bool, sender: WebSocketServerProtocol):
         if state == 3:
             update_relay_ip(cam, state)
     if len(USERS) > 1:  # asyncio.wait doesn't accept an empty list
-        message = json.dumps({
+        message = {
             "event": "update_on_air_change",
             "data": on_air_change_allowed
-        })
+        }
         LOG.debug("Updating users (On Air Change)...")
-        await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS if user != sender])
+        await asyncio.wait([asyncio.create_task(user.send_json(message)) for user in USERS if user != sender])
 
 
-async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
+def update_relay_ip(cam: int, state: int):
+    if state == 1 or (on_air_change_allowed and (state & 0x1) == 0x1):
+        IP_HOLDER[0] = CAMERA_IPS[cam]
+        LOG.debug(f">>> Relay PTZ {cam + 1} ({CAMERA_IPS[cam]})")
+    elif IP_HOLDER[0] == CAMERA_IPS[cam]:
+        IP_HOLDER[0] = None
+        LOG.debug(">>> Relay disabled")
+
+
+async def tally_notify(cam: int, state: int):
+    TALLY_STATES[cam] = state
+    update_relay_ip(cam, state)
+    if USERS:
+        message = {
+            "event": "update_tally",
+            "data": TALLY_STATES
+        }
+        await asyncio.wait([asyncio.create_task(user.send_json(message)) for user in USERS])
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    global CAMERAS, DB
+    # Init camera controls
+    CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
+    # Open database
+    DB = Database()
+    # Start tally state watcher client
+    asyncio.create_task(watch_tallies(tally_notify))
+    # Start VISCA relay
+    asyncio.create_task(run_relay(IP_HOLDER))
+    # Run FastAPI server
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request, "title": WEB_TITLE})
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    ws_client = websocket.client
+    LOG.info(f"Websocket client {(ws_client.host, ws_client.port)} connected")
     USERS.add(websocket)
     try:
         await init(websocket)
-        async for message in websocket:
-            message_data = json.loads(message)
-            event = message_data["event"]
-            data = message_data["data"]
+        while True:
+            message = await websocket.receive_json()
+            event = message["event"]
+            data = message["data"]
             try:
                 if event == "update_button":
                     await asyncio.wait_for(update_button(message, data, websocket), VISCA_TIMEOUT)
@@ -110,63 +162,10 @@ async def dispatcher(websocket: WebSocketServerProtocol, _path: str):
                     await stop_watcher()
                     await watch_tallies(tally_notify)
                 else:
-                    LOG.error("Unsupported event: %s with data %s" % (event, data))
+                    LOG.error(f"Unsupported event: {event} with data {data}")
             except TimeoutError as e:
                 LOG.warning("Timeout error during visca operation", exc_info=e)
+    except WebSocketDisconnect as d:
+        LOG.info(f"Websocket client {(ws_client.host, ws_client.port)} disconnected with code {d.code}")
     finally:
         USERS.remove(websocket)
-
-
-def update_relay_ip(cam: int, state: int):
-    if state == 1 or (on_air_change_allowed and (state & 0x1) == 0x1):
-        IP_HOLDER[0] = CAMERA_IPS[cam]
-        LOG.debug(">>> Relay PTZ %d (%s)" % (cam + 1, CAMERA_IPS[cam]))
-    elif IP_HOLDER[0] == CAMERA_IPS[cam]:
-        IP_HOLDER[0] = None
-        LOG.debug(">>> Relay disabled")
-
-
-async def tally_notify(cam: int, state: int):
-    TALLY_STATES[cam] = state
-    update_relay_ip(cam, state)
-    if USERS:
-        message = json.dumps({
-            "event": "update_tally",
-            "data": TALLY_STATES
-        })
-        await asyncio.wait([asyncio.create_task(user.send(message)) for user in USERS])
-
-
-if __name__ == "__main__":
-    # Create flask web server for resource serving
-    app = Flask(__name__)
-
-    @app.route('/')
-    def root():
-        return render_template('index.html', title=WEB_TITLE)
-
-    # Start flask server in separate Thread
-    threading.Thread(
-        target=app.run,
-        kwargs={"use_reloader": False, "host": SERVER_HOST, "port": FLASK_SERVER_PORT},
-        daemon=True).start()
-
-    # Init camera controls
-    CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
-
-    # Create event loop
-    event_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(event_loop)
-
-    # Start WebSocket server
-    ws_server = websockets.serve(dispatcher, SERVER_HOST, WEBSOCKET_SERVER_PORT)
-    event_loop.run_until_complete(ws_server)
-
-    # Start tally state watcher client
-    event_loop.run_until_complete(watch_tallies(tally_notify))
-
-    # Start VISCA relay
-    event_loop.run_until_complete(run_relay(IP_HOLDER))
-
-    # Wait on event loop
-    event_loop.run_forever()
