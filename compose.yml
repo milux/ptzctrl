@@ -5,7 +5,7 @@ services:
     image: milux/ptzctrl:latest
     container_name: ptzctrl
     # You may override the CMD like this to save log output to a file
-    # command: ["sh", "-c", "hypercorn --bind 0.0.0.0 main:app 2>log/log.txt"]
+    # command: ["sh", "-c", "uvicorn --host 0.0.0.0 main:app 2>log/log.txt"]
     environment:
       - TZ=Europe/Berlin
     ports:
