@@ -6,14 +6,6 @@ jQuery(() => {
             return $(document.createElement(elementType));
         };
 
-        // Event handler for persistent (client-side) On Air Change setting
-        $("#button-on-air-change-group").on("click", "input", 
-            (event) => window.localStorage.setItem("onAirChangeState", event.target.value));
-        (() => {
-            const onAirChangeState = window.localStorage.getItem("onAirChangeState") || "off";
-            $("#button-on-air-change-group input[value=" + onAirChangeState + "]").click();
-        })();
-
         // WebSocket creation, using the hostname from the GUI
         let webSocket = null;
         // Main wrapper element for all buttons
@@ -77,6 +69,7 @@ jQuery(() => {
                 button = $("#button-" + data["cam"] + "-" + data["pos"]);
             }
             const oldClass = button.data("btn_class");
+            // noinspection JSVoidFunctionReturnValueUsed
             data = $.extend(button.data(), data);
             button
                 .data(data)
@@ -93,9 +86,9 @@ jQuery(() => {
             }));
         };
         const sendOnOff = (value, event) => {
-            if (value == "on") {
+            if (value === "on") {
                 wsSend(event, true);
-            } else if (value == "off") {
+            } else if (value === "off") {
                 wsSend(event, false);
             } else {
                 console.error("WTF is this?");
@@ -200,8 +193,15 @@ jQuery(() => {
             }
         });
         // Event handler for on air change lock
-        $("#button-on-air-change-group").on("click", "input",
-            (event) => sendOnOff(event.target.value, "allow_on_air_change"));
+        $("#button-on-air-change-group").on("click", "input", (event) => {
+            window.localStorage.setItem("onAirChangeState", event.target.value);
+            sendOnOff(event.target.value, "allow_on_air_change");
+        });
+        // Load persistent (client-side) On Air Change setting
+        (() => {
+            const onAirChangeState = window.localStorage.getItem("onAirChangeState") || "off";
+            $("#button-on-air-change-group input[value=" + onAirChangeState + "]").click();
+        })();
         // Event handler for focus lock
         $("#button-focus-lock-group").on("click", "button", 
             (event) => sendOnOff(event.target.value, "focus_lock"));

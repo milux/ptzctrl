@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   ptzctrl:
     image: milux/ptzctrl:latest
@@ -16,5 +14,5 @@ services:
       # Uncomment this to map a log directory for your logfile, see above
       # - ./log:/app/log
       # Uncomment the following line to use your customized constants.py, placed beside this file
-      # - ./constants.py:/app/constants.py
+      - ./constants.py:/app/constants.py
     restart: unless-stopped

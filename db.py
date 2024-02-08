@@ -32,11 +32,7 @@ class Database:
         connection = None
         try:
             connection = connect(DB_FILE)
-
-            def dict_factory(cursor, row):
-                return {c[0]: row[i] for i, c in enumerate(cursor.description)}
-
-            connection.row_factory = dict_factory
+            connection.row_factory = lambda cursor, row: {c[0]: row[i] for i, c in enumerate(cursor.description)}
             yield connection.cursor()
             connection.commit()
         finally:

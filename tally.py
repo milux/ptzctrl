@@ -11,9 +11,13 @@ watch_task: Optional[Task] = None
 
 async def stop_watcher():
     watch_task.cancel()
+    try:
+        await watch_task
+    except CancelledError:
+        pass
 
 
-async def watch_tallies(tally_notify: Callable[[int, int], Awaitable[None]]):
+def watch_tallies(tally_notify: Callable[[int, int], Awaitable[None]]):
     global watch_task
     # Create and schedule tally watcher clients
     watch_task = asyncio.create_task(watch(TALLY_IDS, tally_notify, TALLY_HOST, TALLY_PORT))

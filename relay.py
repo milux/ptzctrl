@@ -1,28 +1,47 @@
+import asyncio
+import logging
 from typing import Optional, List
 
-import asyncio_dgram
+
+LOG = logging.getLogger("relay")
 
 
 async def run_relay(ip_holder: List[Optional[str]]):
-    sock = await asyncio_dgram.bind(('0.0.0.0', 1259))
-    client_addr = None
+    loop = asyncio.get_running_loop()
+    transport, _ = await loop.create_datagram_endpoint(
+        lambda: DatagramProtocol(ip_holder),
+        local_addr=('0.0.0.0', 1259)
+    )
+    return transport
 
-    while True:
-        try:
-            data, addr = await sock.recv()
 
-            if ip_holder[0] is None:
-                # Without a valid destiny, incoming UDP segments will be ignored
-                continue
-            else:
-                known_server = (ip_holder[0], 1259)
+class DatagramProtocol(asyncio.DatagramProtocol):
+    def __init__(self, ip_holder: List[Optional[str]]):
+        self.ip_holder = ip_holder
+        self.client_addr = None
+        self.transport = None
 
-            if addr == known_server:
-                # Safety check, should actually be impossible since that would be a response without a prior request
-                if client_addr is not None:
-                    await sock.send(data, client_addr)
-            else:
-                client_addr = addr
-                await sock.send(data, known_server)
-        except Exception as e:
-            print(f"Error in relay: {e}")
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def connection_lost(self, _exc):
+        self.transport.close()
+
+    def error_received(self, exc):
+        LOG.error("Error in UDP relay transport")
+        logging.exception(exc)
+
+    def datagram_received(self, data, addr):
+        if not self.ip_holder[0]:
+            # Without a valid destination, incoming UDP segments will be ignored
+            return
+        else:
+            known_server = (self.ip_holder[0], 1259)
+
+        if addr == known_server:
+            # Safety check, should actually be impossible since that would be a response without a prior request
+            if self.client_addr is not None:
+                self.transport.sendto(data, self.client_addr)
+        else:
+            self.client_addr = addr
+            self.transport.sendto(data, known_server)

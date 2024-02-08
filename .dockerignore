@@ -1,6 +1,6 @@
 .*
 Dockerfile
-docker-compose.yaml
+compose.yml
 README.md
 db
 log

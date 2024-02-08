@@ -6,12 +6,12 @@ NUM_CAMERAS = 3
 NUM_BUTTONS = 18
 # You may add additional cameras here, which will only receive global focus/power commands
 # However, you MUST put the "real" PTZ cameras first!
-CAMERA_IPS = ['10.1.0.31', '10.1.0.32', '10.1.0.33', '10.1.0.34']
+CAMERA_IPS = ['10.1.0.31', '10.1.0.32', '10.1.0.33']
 VISCA_UDP_PORT = 1259
 VISCA_MEMORY_SPEED = 0x18
 # The order of these IDs must match the order of CAMERA_IPS w.r.t. your ATEM controller
 # Leave empty to disable on air change protection
-TALLY_IDS = [4, 5, 3]
+TALLY_IDS = [1, 2, 3]
 TALLY_HOST = "pi.mk"
 TALLY_PORT = 7411
 # Frequency used for doing a ping-pong to check if tally connection is alive

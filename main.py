@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from asyncio.exceptions import TimeoutError
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 from typing import Optional, List, Any, Set
 
 from fastapi import FastAPI
@@ -10,7 +10,6 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from websockets import WebSocketServerProtocol
 
 from constants import TALLY_IDS, CAMERA_IPS, VISCA_UDP_PORT, WEB_TITLE, VISCA_TIMEOUT, RECALL_TIMEOUT
 from db import Database
@@ -32,7 +31,7 @@ USERS: Set[WebSocket] = set()
 on_air_change_allowed = False
 
 
-async def update_button(message: Any, data: dict, sender: WebSocketServerProtocol):
+async def update_button(message: Any, data: dict, sender: WebSocket):
     DB.set_button(**data)
     if len(USERS) > 1:  # asyncio.wait doesn't accept an empty list
         LOG.debug("Updating users...")
@@ -52,7 +51,7 @@ async def recall_pos(data: dict):
     await camera.recall(data["pos"], focus)
 
 
-async def init(user: WebSocketServerProtocol):
+async def init(user: WebSocket):
     await user.send_json({
         "event": "init",
         "data": {
@@ -64,7 +63,7 @@ async def init(user: WebSocketServerProtocol):
     })
 
 
-async def update_on_air_change(allow: bool, sender: WebSocketServerProtocol):
+async def update_on_air_change(allow: bool, sender: WebSocket):
     global on_air_change_allowed
     on_air_change_allowed = allow
     # Update relay state if there is a camera that is selected for preview and program
@@ -103,16 +102,20 @@ async def tally_notify(cam: int, state: int):
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     global CAMERAS, DB
-    # Init camera controls
-    CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
-    # Open database
-    DB = Database()
-    # Start tally state watcher client
-    asyncio.create_task(watch_tallies(tally_notify))
-    # Start VISCA relay
-    asyncio.create_task(run_relay(IP_HOLDER))
-    # Run FastAPI server
-    yield
+    try:
+        # Init camera controls
+        CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
+        # Open database
+        DB = Database()
+        # Start tally state watcher client
+        watch_tallies(tally_notify)
+        # Start VISCA relay
+        with closing(await run_relay(IP_HOLDER)):
+            # Run FastAPI server
+            yield
+    finally:
+        # Terminate tally state watcher
+        await stop_watcher()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -160,7 +163,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await asyncio.wait([asyncio.create_task(init(user)) for user in USERS])
                 elif event == "reconnect":
                     await stop_watcher()
-                    await watch_tallies(tally_notify)
+                    watch_tallies(tally_notify)
                 else:
                     LOG.error(f"Unsupported event: {event} with data {data}")
             except TimeoutError as e:
