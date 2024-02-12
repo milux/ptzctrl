@@ -46,12 +46,17 @@ h2 {
   box-sizing: border-box;
 }
 
+#ptz-wrapper .col-4 {
+  padding: .5vw!important;
+}
+
 .ptz-button {
   width: 100%;
-  height: 5em;
+  height: 5vw;
   white-space: normal;
-  font-size: 1.2em;
+  font-size: 1.2vw;
   overflow: hidden;
+  padding: .5vw 1vw;
 }
 
 .modal-footer .col-auto {

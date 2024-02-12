@@ -52,13 +52,13 @@ jQuery(() => {
         const makePtzButton = (row) => {
             return $
                 .new("div")
-                .attr("class", "col-12 col-lg-6 col-xxl-4 p-2")
+                .attr("class", "col-4")
                 .append($
                     .new("button")
                     .attr({
                         "type": "button",
-                        "id": "button-" + row["cam"] + "-" + row["pos"],
-                        "class": "btn btn-lg ptz-button shadow-none " + row["btn_class"]
+                        "id": `button-${row["cam"]}-${row["pos"]}`,
+                        "class": `btn btn-lg ptz-button shadow-none ${row["btn_class"]}`
                     })
                     .text(row["name"])
                     .data(row));
@@ -66,7 +66,7 @@ jQuery(() => {
         // Update button, finding it in DOM if neccessary
         const updateButton = (data, button) => {
             if (button === undefined) {
-                button = $("#button-" + data["cam"] + "-" + data["pos"]);
+                button = $(`#button-${data["cam"]}-${data["pos"]}`);
             }
             const oldClass = button.data("btn_class");
             // noinspection JSVoidFunctionReturnValueUsed
@@ -100,7 +100,7 @@ jQuery(() => {
             if (durationMs === undefined) {
                 durationMs = 500;
             }
-            body.css("animation", animation + " " + (durationMs/1000).toFixed(3) + "s ease-in-out")
+            body.css("animation", `${animation} ${(durationMs/1000).toFixed(3)}s ease-in-out`)
             setTimeout(() => body.css("animation", ""), durationMs);
         };
         const savePos = (data) => {
@@ -194,14 +194,8 @@ jQuery(() => {
         });
         // Event handler for on air change lock
         $("#button-on-air-change-group").on("click", "input", (event) => {
-            window.localStorage.setItem("onAirChangeState", event.target.value);
             sendOnOff(event.target.value, "allow_on_air_change");
         });
-        // Load persistent (client-side) On Air Change setting
-        (() => {
-            const onAirChangeState = window.localStorage.getItem("onAirChangeState") || "off";
-            $("#button-on-air-change-group input[value=" + onAirChangeState + "]").click();
-        })();
         // Event handler for focus lock
         $("#button-focus-lock-group").on("click", "button", 
             (event) => sendOnOff(event.target.value, "focus_lock"));

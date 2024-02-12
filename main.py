@@ -2,6 +2,7 @@ import asyncio
 import logging
 from asyncio.exceptions import TimeoutError
 from contextlib import asynccontextmanager, closing
+from time import time
 from typing import Optional, List, Any, Set
 
 from fastapi import FastAPI
@@ -122,11 +123,13 @@ app = FastAPI(lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+startup_time = int(time())
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "title": WEB_TITLE})
+    return templates.TemplateResponse("index.html", {"request": request, "title": WEB_TITLE,
+                                                     "startup_time": startup_time})
 
 
 @app.websocket("/ws")

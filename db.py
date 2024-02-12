@@ -9,8 +9,6 @@ LOG = logging.getLogger("db")
 
 
 class Database:
-    connection = None
-
     def __init__(self):
         if not exists(DB_FILE):
             LOG.info("Initialize sqlite database...")
