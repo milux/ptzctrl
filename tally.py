@@ -10,17 +10,18 @@ watch_task: Optional[Task] = None
 
 
 async def stop_watcher():
-    watch_task.cancel()
-    try:
-        await watch_task
-    except CancelledError:
-        pass
+    global watch_task
+    old_task = watch_task
+    watch_task = None
+    old_task.cancel()
+    await old_task
 
 
 def watch_tallies(tally_notify: Callable[[int, int], Awaitable[None]]):
     global watch_task
-    # Create and schedule tally watcher clients
-    watch_task = asyncio.create_task(watch(TALLY_IDS, tally_notify, TALLY_HOST, TALLY_PORT))
+    if watch_task is None:
+        # Create and schedule tally watcher clients
+        watch_task = asyncio.create_task(watch(TALLY_IDS, tally_notify, TALLY_HOST, TALLY_PORT))
 
 
 async def send_keepalive_messages(writer: StreamWriter):
@@ -36,23 +37,23 @@ async def send_keepalive_messages(writer: StreamWriter):
         logging.exception(e)
 
 
-async def connect(tally_ids: List[int], host: str, port: int) -> (StreamReader, StreamWriter):
+async def connect(tally_ids: List[int], host: str, port: int) -> tuple[StreamReader, StreamWriter]:
     reader, writer = await asyncio.open_connection(host, port)
     # Request new format
     writer.write(b'\xff')
-    # Write number of tally IDs
+    # Write the number of tally IDs
     writer.write(len(tally_ids).to_bytes(1, 'big'))
     # Write tally IDs
     for tally_id in tally_ids:
         writer.write(tally_id.to_bytes(1, 'big'))
     # Await flush
     await writer.drain()
-    # Pass on reader/writer pair
+    # Pass on the reader/writer pair
     return reader, writer
 
 
 async def watch(tally_ids: List[int], callback: Callable[[int, int], Awaitable[None]], host: str, port: int):
-    # Start with a 1-second reconnect delay on first error (see doubling below)
+    # Start with a 1-second reconnect delay on the first error (see doubling below)
     reconnect_delay = 0.5
     tally_map = {tally_cam: cam for cam, tally_cam in enumerate(TALLY_IDS)}
     last_states = [0] * len(tally_ids)

@@ -108,8 +108,6 @@ async def lifespan(_app: FastAPI):
         CAMERAS = [CommandSocket(ip, VISCA_UDP_PORT) for ip in CAMERA_IPS]
         # Open database
         DB = Database()
-        # Start tally state watcher client
-        watch_tallies(tally_notify)
         # Start VISCA relay
         with closing(await run_relay(IP_HOLDER)):
             # Run FastAPI server
@@ -138,6 +136,7 @@ async def websocket_endpoint(websocket: WebSocket):
     ws_client = websocket.client
     LOG.info(f"Websocket client {(ws_client.host, ws_client.port)} connected")
     USERS.add(websocket)
+    watch_tallies(tally_notify)
     try:
         await init(websocket)
         while True:
@@ -175,3 +174,5 @@ async def websocket_endpoint(websocket: WebSocket):
         LOG.info(f"Websocket client {(ws_client.host, ws_client.port)} disconnected with code {d.code}")
     finally:
         USERS.remove(websocket)
+        if not USERS:
+            await stop_watcher()

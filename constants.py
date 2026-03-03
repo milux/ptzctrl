@@ -12,7 +12,7 @@ VISCA_MEMORY_SPEED = 0x18
 # The order of these IDs must match the order of CAMERA_IPS w.r.t. your ATEM controller
 # Leave empty to disable on air change protection
 TALLY_IDS = [1, 2, 3]
-TALLY_HOST = "pi.mk"
+TALLY_HOST = "tally.internal"
 TALLY_PORT = 7411
 # Frequency used for doing a ping-pong to check if tally connection is alive
 TALLY_KEEPALIVE_FREQUENCY = 10.0
